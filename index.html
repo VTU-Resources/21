@@ -19,9 +19,8 @@
       margin: 40px auto;
       background: #fff;
       border-radius: 12px;
-      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.05);
       padding: 30px;
-      position: relative;
     }
     .vtu-logo {
       display: block;
@@ -80,49 +79,47 @@
       font-size: 16px;
       font-weight: 600;
     }
-    .loader {
-      display: none;
-      text-align: center;
-      margin-top: 20px;
-    }
-    .loader span {
-      display: inline-block;
-      width: 10px;
-      height: 10px;
-      margin: 0 3px;
-      background: #1e88e5;
-      border-radius: 50%;
-      animation: bounce 0.6s infinite alternate;
-    }
-    .loader span:nth-child(2) {
-      animation-delay: 0.2s;
-    }
-    .loader span:nth-child(3) {
-      animation-delay: 0.4s;
-    }
-    @keyframes bounce {
-      to {
-        transform: translateY(-10px);
-      }
-    }
-    #overlay, #successPopup {
-      display: none;
+    #overlay {
       position: fixed;
-      top: 0; left: 0;
-      width: 100%; height: 100%;
-      background: rgba(0,0,0,0.5);
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.3);
+      display: none;
       z-index: 1000;
     }
-    #successPopup {
+    #popup {
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
       background: #fff;
-      width: 90%;
-      max-width: 360px;
-      margin: 100px auto;
-      padding: 20px;
+      padding: 20px 24px;
       border-radius: 10px;
+      box-shadow: 0 6px 24px rgba(0,0,0,0.2);
+      z-index: 1001;
+      display: none;
       text-align: center;
-      color: #1b5e20;
+      max-width: 300px;
+    }
+    #popup h2 {
+      color: #2e7d32;
+      font-size: 18px;
+      margin-bottom: 12px;
+    }
+    #popup p {
+      font-size: 14px;
+      margin-bottom: 20px;
+    }
+    #popup button {
+      padding: 8px 18px;
+      background: #1565c0;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
       font-weight: 600;
+    }
+    #popup button:hover {
+      background: #0d47a1;
     }
   </style>
 </head>
@@ -145,69 +142,66 @@
     <p class="final-amount">Amount: ₹499</p>
 
     <label for="screenshot">Upload Payment Screenshot</label>
-    <input type="file" id="screenshot" accept="image/*" required />
+    <input type="file" id="screenshot" required accept="image/*" />
 
     <button class="btn" onclick="submitForm()">Submit Registration</button>
-    <div class="loader" id="loader"><span></span><span></span><span></span></div>
   </div>
 
+  <!-- Overlay and popup -->
   <div id="overlay"></div>
-  <div id="successPopup">
+  <div id="popup">
     <h2>🎉 Registration Successful!</h2>
     <p>You will receive your login details within 24 hours.</p>
+    <button onclick="closePopup()">OK</button>
   </div>
 
   <script>
-    async function submitForm() {
+    const scriptURL = "https://script.google.com/macros/s/AKfycbwLd_yvU5acULzxc0WAh5RlkFkCZKBsInjLP0QChsUKK4G5VH8wG-IOLrgyA38HjZP4Cg/exec";
+
+    function submitForm() {
       const name = document.getElementById("name").value.trim();
       const email = document.getElementById("email").value.trim();
       const contact = document.getElementById("contact").value.trim();
-      const file = document.getElementById("screenshot").files[0];
+      const screenshotFile = document.getElementById("screenshot").files[0];
 
-      if (!name || !email || !contact || !file) {
+      if (!name || !email || !contact || !screenshotFile) {
         alert("Please fill all fields and upload the payment screenshot.");
         return;
       }
 
-      document.querySelector(".btn").disabled = true;
-      document.getElementById("loader").style.display = "block";
+      document.getElementById("overlay").style.display = "block";
 
       const reader = new FileReader();
-      reader.onloadend = async () => {
+      reader.onloadend = function () {
         const base64String = reader.result.split(",")[1];
+
         const formData = new FormData();
         formData.append("name", name);
         formData.append("email", email);
         formData.append("contact", contact);
         formData.append("screenshot", base64String);
 
-        try {
-          await fetch("https://script.google.com/macros/s/AKfycbyIuZxa-c7tq9jCQW-71skWT4zxKb7FduxIjZlmf-F4S5rjJI3hEhHfB8uuQ_D6-LFtmg/exec", {
-            method: "POST",
-            body: formData,
-            mode: "no-cors"
+        fetch(scriptURL, {
+          method: "POST",
+          body: formData,
+        })
+          .then(response => response.text())
+          .then(result => {
+            document.getElementById("overlay").style.display = "none";
+            document.getElementById("popup").style.display = "block";
+          })
+          .catch(error => {
+            document.getElementById("overlay").style.display = "none";
+            alert("❌ Network Error! Please try again.");
           });
-          setTimeout(() => {
-            document.getElementById("loader").style.display = "none";
-            document.getElementById("overlay").style.display = "block";
-            document.getElementById("successPopup").style.display = "block";
-          }, 600);
-        } catch {
-          document.getElementById("loader").style.display = "none";
-          document.querySelector(".btn").disabled = false;
-          alert("Submission error. Try again later.");
-        }
       };
-      reader.readAsDataURL(file);
+      reader.readAsDataURL(screenshotFile);
     }
 
-    document.addEventListener('contextmenu', e => e.preventDefault());
-    document.addEventListener('keydown', e => {
-      if (e.key === 'PrintScreen' || (e.ctrlKey && (e.key === 'p' || e.key === 's'))) {
-        e.preventDefault();
-        alert("Action disabled.");
-      }
-    });
+    function closePopup() {
+      document.getElementById("popup").style.display = "none";
+      location.reload();
+    }
   </script>
 </body>
 </html>
